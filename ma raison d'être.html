@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feliz 14, mor ❤️</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0a0a0a;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* Capa de Texto Inicial */
+        #intro-overlay {
+            position: absolute;
+            bottom: 15%;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease;
+            z-index: 10;
+        }
+        h1 {
+            font-weight: 200;
+            letter-spacing: 5px;
+            font-size: 1.8rem;
+            margin: 0;
+            color: #ffcad4;
+            text-shadow: 0 0 20px rgba(255, 105, 180, 0.8);
+        }
+
+        /* --- ESTILO DE LAS "PÁGINAS" DE MENSAJE --- */
+        .message-page {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1a0b10 0%, #3a1c25 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            z-index: 20;
+            color: #ffdde1;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .message-page.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .message-content {
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid #ffcad4;
+            box-shadow: 0 0 30px rgba(255, 100, 150, 0.2);
+        }
+        .message-title {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        .message-body {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .back-btn {
+            padding: 10px 30px;
+            background: transparent;
+            border: 2px solid #ffcad4;
+            color: #ffcad4;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s;
+        }
+        .back-btn:hover {
+            background: #ffcad4;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="intro-overlay">
+        <h1 id="titulo">Te amo con mi...</h1>
+    </div>
+
+    <div id="page-container" class="message-page">
+        <div class="message-content">
+            <h2 class="message-title" id="page-title">Título</h2>
+            <p class="message-body" id="page-body">Mensaje aquí...</p>
+            <button class="back-btn" onclick="closePage()">Para que vuelvas a la flor, mi amor :3</button>
+        </div>
+    </div>
+
+    <script>
+	let clickCooldown = false; // Variable para evitar clics dobles
+	let isMessageOpen = false;
+        // ==========================================
+        //      CONFIGURACIÓN DE MENSAJES
+        // ==========================================
+        // Aquí defines qué dice cada pétalo y a dónde lleva.
+        // El orden es: 3 pétalos de fondo, luego 3 pétalos del frente.
+        const petalData = [
+            // --- CAPA FONDO (Pétalos grandes de atrás) ---
+            { word: "Corazon", title: "Te amo con mi corazón", text: "Gracias a ti puedo sentir lo que tanto dicen en las peliculas y canciones." },
+            { word: "Oido",   title: "Te amo con mis Oido", text: "Que podria esucharte 24 horas del día sin parar y seguir teniendo las mismas ganas para el día siguiente" },
+            { word: "Olfato",    title: "Te amo con mi olfato",     text: "Que como te he dicho muchass veces, adoro como hueles y me diste ese peluche con droga lit <3" },
+            
+            // --- CAPA FRENTE (Pétalos del centro) ---
+            { word: "Gusto",      title: "Te amo con mi gusto",      text: "El poder besarte, o por mientras besito blutut. Me hace querer cada vez más de ti. SIEMPRE" },
+            { word: "Vista",   title: "Te amo con mi vista",            text: "Con ver mis ojitos creo que te daras cuenta lo mucho que te admiro, quiero, adoro, amo y lo mucho que me gusta verte. Mis ojos simplemente ven y te desean para toda la vida. Quisiera de aqui a un futuro despertar y lo primero que vea sea a ti a mi lado" },
+            { word: "Tacto",   title: "Te amo con mi tacto",       text: "Poder tocarte, abrazarte, sentirte me llena el día. No sabia lo mucho que me gustaba abrazar hasta que te abaracé por primera vez. No sabia lo mucho que me gustaba ir de la mano con alguein hasta que te sostuve la mano esa primera vez. Y se que quiero seguir tomando tu mano por siempre" }
+        ];
+
+        // ==========================================
+        
+        let petals = [];
+        let stamens = [];
+        let particles = [];
+        let stemHeight = 0;
+        let bloomState = 0; // 0:Nada, 1:Creciendo, 2:Florecida
+        let maxStemHeight;
+        let fontRegular;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            angleMode(DEGREES);
+            maxStemHeight = height * 0.50;
+            textAlign(CENTER, CENTER);
+            textSize(14);
+        }
+
+        function draw() {
+            background(10, 8, 12, 30); 
+            translate(width / 2, height); 
+
+            // --- FASE 1: Tallo ---
+            if (bloomState >= 1) {
+                if (stemHeight < maxStemHeight) {
+                    stemHeight += height * 0.008; 
+                } else if (bloomState === 1) {
+                    bloomState = 2;
+                    createInteractiveLily();
+                    document.getElementById('intro-overlay').style.opacity = 1;
+                }
+
+                stroke(90, 150, 90);
+                strokeWeight(10);
+                noFill();
+                beginShape();
+                vertex(0, 0);
+                bezierVertex(20, -stemHeight/3, -20, -stemHeight/1.5, 0, -stemHeight);
+                endShape();
+            }
+
+            // --- FASE 2: Flor Interactiva ---
+            if (bloomState === 2) {
+                translate(0, -stemHeight);
+                
+                // IMPORTANTE: Dibujamos primero los pétalos para que el texto quede encima
+                petals.sort((a,b) => a.layer - b.layer);
+                
+                for (let petal of petals) {
+                    petal.update();
+                    petal.display();
+                }
+
+                for (let stamen of stamens) {
+                   stamen.update();
+                   stamen.display();
+                }
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].display();
+                    if (particles[i].finished()) particles.splice(i, 1);
+                }
+            }
+        }
+
+        function createInteractiveLily() {
+            // Asignamos los datos a los pétalos
+            // Capa 0 (Fondo - 3 pétalos)
+            for (let i = 0; i < 3; i++) {
+                petals.push(new Petal(i * 120, 0, petalData[i]));
+            }
+            // Capa 1 (Frente - 3 pétalos)
+            for (let i = 0; i < 3; i++) {
+                petals.push(new Petal(i * 120 + 60, 1, petalData[i+3]));
+            }
+            // Centro
+            for(let i=0; i<7; i++) {
+                stamens.push(new Stamen(i * (360/7)));
+            }
+            // Partículas
+            for (let i = 0; i < 80; i++) {
+                particles.push(new Particle(true));
+            }
+        }
+
+        // --- LÓGICA DE CLICS CORREGIDA Y PRECISA ---
+        function mousePressed() {
+            // 1. Bloqueo si acabamos de cerrar una carta o la animación no ha empezado
+	    if (isMessageOpen) return false;
+            if (clickCooldown) return false;
+
+            // 2. Si la flor no ha nacido, iniciar animación (clic en cualquier lado)
+            if (bloomState === 0) {
+                bloomState = 1;
+                document.getElementById('intro-overlay').style.opacity = 0;
+                return false;
+            } 
+            
+            // 3. Si ya floreció, buscar el pétalo exacto
+            if (bloomState === 2) {
+                let flowerX = width / 2;
+                let flowerY = height - maxStemHeight;
+                
+                // Calcular distancia y ángulo del mouse respecto al centro de la flor
+                let d = dist(mouseX, mouseY, flowerX, flowerY);
+                let angle = atan2(mouseY - flowerY, mouseX - flowerX); 
+                if (angle < 0) angle += 360; 
+                angle = (angle + 270) % 360; 
+
+                // ZONA MUERTA: Si haces clic muy lejos O muy cerca del centro, ignorar.
+                // Esto arregla el "missclick" en el centro.
+                if (d < 40 || d > 400) return false;
+
+                let selectedPetal = null;
+
+                // Ordenamos los pétalos para revisar primero los de ARRIBA (Capa 1)
+                // Esto asegura que si se solapan, el de arriba gana.
+                let allPetals = [...petals].sort((a, b) => b.layer - a.layer);
+
+                for (let p of allPetals) {
+                    // CALCULO DE PRECISIÓN:
+                    // 1. Comprobar si el clic está dentro del largo actual del pétalo (p.len)
+                    // 2. Comprobar si el ángulo coincide con un margen de error de 15 grados
+                    
+                    if (d < p.len + 20) { // +20 es un pequeño margen de error en la punta
+                        let diff = abs(angle - p.angle);
+                        if (diff > 180) diff = 360 - diff;
+
+                        // Si el ángulo coincide (cono de 30 grados)
+                        if (diff < 15) {
+                            selectedPetal = p;
+                            break; // ¡IMPORTANTE! En cuanto encuentra uno, se detiene. Imposible abrir 2.
+                        }
+                    }
+                }
+
+                if (selectedPetal) {
+                    openPage(selectedPetal.data);
+                } else {
+                    // Si hiciste clic cerca pero no en un pétalo, soltar partículas
+                    for (let i = 0; i < 10; i++) particles.push(new Particle(false));
+                }
+            }
+            return false; // Evita comportamientos extraños del navegador
+        }
+
+        // --- FUNCIONES DE "PÁGINA" ---
+function openPage(data) {
+    let container = document.getElementById('page-container');
+    document.getElementById('page-title').innerText = data.title;
+    document.getElementById('page-body').innerText = data.text;
+    
+    container.classList.add('active');
+    
+    // BLOQUEAMOS LA FLOR
+    isMessageOpen = true; 
+}
+
+function closePage() {
+    // 1. Ocultar la carta visualmente
+    document.getElementById('page-container').classList.remove('active');
+    
+    // 2. Esperar un poco antes de dejar que la flor funcione de nuevo
+    // Esto evita que el clic de "Cerrar" active un pétalo por accidente
+    setTimeout(() => {
+        isMessageOpen = false; // DESBLOQUEAMOS LA FLOR
+    }, 500);
+}
+
+        // --- CLASES ---
+        class Petal {
+            constructor(angle, layer, data) {
+                this.angle = angle;
+                this.layer = layer;
+                this.data = data; // Guardamos el texto y mensaje
+                this.len = 0;
+                this.maxLen = layer === 0 ? height * 0.35 : height * 0.30; 
+                this.width = 0;
+                this.maxWidth = layer === 0 ? 800 : 800; // ANCHO MASIVO
+                this.growthSpeed = (layer === 0 ? height * 0.005 : height * 0.007); 
+                
+                if (layer === 0) {
+                     this.color = color(235, 110, 150, 230); 
+                } else {
+                     this.color = color(255, 165, 195, 240); 
+                }
+            }
+
+            update() {
+                if (this.len < this.maxLen) {
+                    this.len += this.growthSpeed * (1 - this.len/this.maxLen * 0.4); 
+                    this.width = sin(map(this.len, 0, this.maxLen, 0, 170)) * this.maxWidth;
+                }
+            }
+
+            display() {
+                push();
+                rotate(this.angle);
+                
+                // Dibujar Pétalo
+                fill(this.color);
+                stroke(255, 210, 230, 180);
+                strokeWeight(1.5);
+                beginShape();
+                vertex(0, 0);
+                bezierVertex(this.width * 0.6, this.len * 0.3, this.width * 0.3, this.len * 0.8, 0, this.len);
+                bezierVertex(-this.width * 0.3, this.len * 0.8, -this.width * 0.6, this.len * 0.3, 0, 0);
+                endShape(CLOSE);
+                
+                // Texto en el pétalo (Solo si ya creció)
+                if (this.len > this.maxLen * 0.9) {
+                    fill(255); // Texto blanco
+                    noStroke();
+                    textSize(windowHeight * 0.02); // Texto adaptable
+                    // Escribir la palabra rotada para que se lea bien
+                    push();
+                    translate(0, this.len * 0.6); // Posición del texto en el pétalo
+                    // Si el pétalo está "boca abajo" (ángulos 90 a 270), rotamos el texto 180
+                    if (this.angle > 90 && this.angle < 270) {
+                        rotate(180);
+                    }
+                    text(this.data.word.toUpperCase(), 0, 0);
+                    pop();
+                }
+
+                pop();
+            }
+        }
+
+        class Stamen {
+            constructor(angle) {
+                this.angle = angle;
+                this.len = 0;
+                this.maxLen = random(height * 0.06, height * 0.1); 
+            }
+            update() { if (this.len < this.maxLen) this.len += height * 0.003; }
+            display() {
+                push();
+                rotate(this.angle);
+                stroke(255, 220, 100, 180);
+                strokeWeight(3);
+                line(0,0, 0, this.len);
+                noStroke();
+                fill(255, 245, 160);
+                ellipse(0, this.len, 8, 10); 
+                pop();
+            }
+        }
+
+        class Particle {
+            constructor(initial) {
+                this.pos = createVector(0, 0);
+                let speed = initial ? random(5, 15) : random(2, 8);
+                this.vel = p5.Vector.random2D().mult(speed);
+                this.alpha = 255;
+                let r = random();
+                if (r < 0.3) this.color = color(255, 255, 255); 
+                else if (r < 0.7) this.color = color(255, 190, 210); 
+                else this.color = color(255, 230, 160); 
+                this.size = random(4, 9);
+            }
+            update() {
+                this.pos.add(this.vel);
+                this.vel.mult(0.95);
+                this.alpha -= 3;     
+            }
+            finished() { return this.alpha < 0; }
+            display() {
+                noStroke();
+                drawingContext.shadowBlur = 20;
+                drawingContext.shadowColor = this.color;
+                fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.alpha);
+                ellipse(this.pos.x, this.pos.y, this.size);
+                drawingContext.shadowBlur = 0; 
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            maxStemHeight = height * 0.50;
+        }
+    </script>
+</body>
+</html>
